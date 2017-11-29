@@ -7,44 +7,62 @@ clear all; close all;
 fprintf(' sampling frequency = %d Hz \n', F);
 fprintf(' track duration = %5.2f s \n\n', length(signal_109)/F);
 
-% Listen the original signal
-%fprintf('You are listening to an audio signal \n');
-%sound(signal_109,F);
-
 % the DFT
-N = 1*F;                      % analysis interval (relative to 10ms)
-XX = fft(signal_109(6500:6500 + N - 1));  % computation of the DFT of 10 ms (6500 is the starting point of the analysis window)T
+N = length(signal_109);     % analysis interval (relative to 10ms)
+XX = fft(signal_109(1:N));  % computation of the DFT of the whole signal
+XX = XX / N;                % normalization
 
-% Computation of the notch filter coefficients
-b1 = -2*cos(2*pi*17600/F); 
-b = [1 b1 1];
-delta = pi*5000/F; r=1-delta;
-a2=r^2; a1 = -2*r*cos(2*pi*17600/F);
-a= [1 a1 a2];
+% find the frequency of the carriers
+freq = find(abs(XX) >= (max(abs(XX)) / 2));
 
-y=filter(b, a, signal_109);             % filter the signal
+A1 = (abs(XX(freq(1))) + abs(XX(freq(4)))) / 2;
+A2 = (abs(XX(freq(2))) + abs(XX(freq(3)))) / 2;
 
-Y = fft(y(6500:6500 + N - 1));
+freq = freq * F / N;
+
+% debug simbol
+disp(freq);
 
 % Plot the magnitude
 figure(1)                       % Magnitude in dB (it is more meaningful)
 f=linspace(0,F,N);              % frequency axis: 0---F Hz
-
-subplot(2,1,1);
 plot(f,20*log10(abs(XX)));
-title('Magnitude (in dB) of the spectrum of the portion of the signal');
+title('Magnitude (in dB) of the spectrum of the signal');
 xlabel(' f (Hz)'); ylabel('|Y(f)|  (dB)');
 maxy = max(20*log10(abs(XX))); miny=maxy-90;
-axis([0 F miny  maxy]);
-subplot(2,1,2);
-plot(f,20*log10(abs(Y)));
-title('Magnitude (in dB) of the spectrum of the portion of the signal');
-xlabel(' f (Hz)'); ylabel('|Y(f)|  (dB)');
-maxy = max(20*log10(abs(Y))); miny=maxy-90;
-axis([0 F miny  maxy]);
+axis([0 F miny maxy]);
 
 
-sound(y,F);
+Fstop1 = (freq(1) - 5);
+Fpass1 = (freq(1) + 5);
+
+b = firpm(500, [0 Fstop1-10 Fstop1 Fpass1 Fpass1+10 F]/F,[0 0 1 1 0 0]);
+
+[H, W] = freqz(b, 1, length(XX));
+
+disp(length(H));
+disp(length(XX));
+
+%Estraggo la portante
+CARR1 = XX .* H;
+
+carr1 = fft(CARR1(1:N)); %portante sinusoidale
+
+%sound(abs(carr1), F);
+
+left = signal_109 .* carr1 / A1; %demodulo
+
+b4000 = firpm(500, [0 5 10 4000 4500 F]/F,[0 0 1 1 0 0]);
+
+left_filtered = filter(b4000, 1, left);
+
+sound(abs(left_filtered), F);
+
+
+
+
+
+
 
 
 
