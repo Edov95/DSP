@@ -9,57 +9,57 @@ fprintf(' track duration = %5.2f s \n\n', length(signal_109)/F);
 
 % the DFT
 N = length(signal_109);     % analysis interval (relative to 10ms)
-XX = fft(signal_109(1:N));  % computation of the DFT of the whole signal
-XX = XX / N;                % normalization
+X = fft(signal_109(1:N));  % computation of the DFT of the whole signal
+X_norm = X / N;                % normalization
 
 % find the frequency of the carriers
-freq = find(abs(XX) >= (max(abs(XX)) / 2));
+locs = find(abs(X) >= (max(abs(X)) / 2));
 
-A1 = (abs(XX(freq(1))) + abs(XX(freq(4)))) / 2;
-A2 = (abs(XX(freq(2))) + abs(XX(freq(3)))) / 2;
+A1 = abs(X_norm(locs(1))) + abs(X_norm(locs(4)));
+A2 = abs(X_norm(locs(2))) + abs(X_norm(locs(3)));
 
-freq = freq * F / N;
+freq = locs * F / N;
 
 % debug simbol
 disp(freq);
+disp(A1);
+disp(A2);
 
 % Plot the magnitude
 figure(1)                       % Magnitude in dB (it is more meaningful)
 f=linspace(0,F,N);              % frequency axis: 0---F Hz
-plot(f,20*log10(abs(XX)));
+plot(f,20*log10(abs(X_norm)));
 title('Magnitude (in dB) of the spectrum of the signal');
-xlabel(' f (Hz)'); ylabel('|Y(f)|  (dB)');
-maxy = max(20*log10(abs(XX))); miny=maxy-90;
-axis([0 F miny maxy]);
+xlabel(' f (Hz)'); ylabel('|X_norm(f)|  (dB)');
+axis([0 F -220 -20]);
 
 
-Fstop1 = (freq(1) - 5);
-Fpass1 = (freq(1) + 5);
+%%%%%%% Calcolo parametri filtro passa banda per estrarre la portante
 
-b = firpm(500, [0 Fstop1-10 Fstop1 Fpass1 Fpass1+10 F]/F,[0 0 1 1 0 0]);
+f_3_dB = 1;                 %Frequenza di taglio in Hz
+theta_3_dB = 2*pi*f_3_dB/F; %Pulsazione di taglio
 
-[H, W] = freqz(b, 1, length(XX));
+delta = theta_3_dB / 2;
+r = 1 - delta;
+b0 = delta;
+a1 = 2*r*cos(2*pi*freq(1)/F);
+a2 = -r*r;
 
-disp(length(H));
-disp(length(XX));
+[H_1, w] = freqz(b0*[1 -2 1], [1 -a1 -a2], 'whole', 2048, F);
 
-%Estraggo la portante
-CARR1 = XX .* H;
+carry1 = filter(b0*[1 -2 1], [1 -a1 -a2], signal_109);
 
-carr1 = fft(CARR1(1:N)); %portante sinusoidale
+CARRY1 = fft(carry1(1:N));
 
-%sound(abs(carr1), F);
-
-left = signal_109 .* carr1 / A1; %demodulo
-
-b4000 = firpm(500, [0 5 10 4000 4500 F]/F,[0 0 1 1 0 0]);
-
-left_filtered = filter(b4000, 1, left);
-
-sound(abs(left_filtered), F);
+%sound(carry1, F);
 
 
-
+figure(2)                       % Magnitude in dB (it is more meaningful)
+f=linspace(0,F,N);              % frequency axis: 0---F Hz
+plot(f,20*log10(abs(CARRY1)));
+title('Magnitude (in dB) of the spectrum of the signal');
+xlabel(' f (Hz)'); ylabel('|X_norm(f)|  (dB)');
+axis([0 F -220 -20]);
 
 
 
