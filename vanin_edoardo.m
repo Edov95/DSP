@@ -58,30 +58,35 @@ CARRY2_NORM = CARRY2 / N;  %Normalization
 
 %%%%%%%%% Demodulation
 
-left_spuria  = signal_109 .* carry1 / A1;
-right_spuria = signal_109 .* carry2 / A2;
+left_demod  = signal_109 .* carry1 / A1;
+right_demod = signal_109 .* carry2 / A2;
 
 disp(length(signal_109));
-disp(length(left_spuria));
+disp(length(left_demod));
 
-%sound(left_spuria, F);
+%sound(left_demod, F);
 
 %%%%%%%%% Cleaning signals
 
-[a_highpass, b_highpass] = ellip(5, 5, 80, 10 / F, 'high');
-[a_lowpass, b_lowpass] = ellip(8, 5, 80, 4000 / F, 'low');
+[b_highpass, a_highpass] = ellip(5, 5, 80, 2*10 / F, 'high');
+[b_lowpass, a_lowpass] = ellip(8, 5, 80, 2*4000 / F, 'low');
 
 [H_highpass, w] = freqz(b_highpass, a_highpass, 'whole', 2048, F);
 
-left_lowpass = filter(b_lowpass, a_lowpass, left_spuria);
+left_lowpass = filter(10.*b_lowpass, a_lowpass, left_demod);
+left = filter(10.*b_highpass, a_highpass, left_lowpass);
 
-%sound(left_lowpass, F);
+right_lowpass = filter(10.*b_lowpass, a_lowpass, right_demod);
+right = filter(10.*b_highpass, a_highpass, right_lowpass);
 
-left = filter(b_highpass, a_highpass, left_lowpass);
+%sound(left, F);
+%sound(right, F);
 
-sound(left, F);
+y = zeros(N, 2);
+y(:,1) = left;
+y(:,2) = right;
 
-
+%audiowrite('signal_109_demod.wav', y, F);
 
 
 
@@ -111,10 +116,11 @@ axis([0 F -220 -20]);
 
 figure(4)                       % Magnitude in dB (it is more meaningful)
 f=linspace(0,F,2048);              % frequency axis: 0---F Hz
-plot(f,20*log10(abs(H_highpass)/2048));
+plot(f,20*log10(abs(H_highpass)));
 title('Magnitude (in dB) of the spectrum of the signal');
 xlabel(' f (Hz)'); ylabel('|H_hoghpass(f)|  (dB)');
-axis([0 F -220 -20]);
+maxy = max(abs(H_highpass)); miny = min(abs(H_highpass));
+axis([0 F miny maxy]);
 
 
 
